@@ -15,12 +15,34 @@ export default function StandardsSelection() {
   const { t } = useLanguage();
   const [selectedStandard, setSelectedStandard] = useState<string | null>(null);
 
-  const handleStandardSelect = (standard: string) => {
+  const handleStandardSelect = async (standard: string) => {
     setSelectedStandard(standard);
-    // Store standard preference in localStorage
-    localStorage.setItem('selectedStandard', standard);
-    // Navigate to subjects page after standard selection
-    navigate('/subjects');
+
+    try {
+      // Send standard selection to Django backend
+      const response = await fetch("http://127.0.0.1:8000/api/auth/select-standard/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({ standard }),
+      });
+
+      if (response.ok) {
+        // Store standard preference in localStorage
+        localStorage.setItem('selectedStandard', standard);
+        // Navigate to subjects page after standard selection
+        navigate('/subjects');
+      } else {
+        throw new Error("Failed to save standard selection");
+      }
+    } catch (error) {
+      console.error("Error saving standard:", error);
+      // Still store locally and navigate on error
+      localStorage.setItem('selectedStandard', standard);
+      navigate('/subjects');
+    }
   };
 
   return (

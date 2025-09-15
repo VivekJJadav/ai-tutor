@@ -1,7 +1,7 @@
 import type { Route } from "./+types/home";
 import { useLanguage } from "../contexts/LanguageContext";
 import { Link, useNavigate } from "react-router"; // ✅ useNavigate for redirect
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -19,11 +19,61 @@ export default function Home() {
     password: "",
   });
 
+  // ✅ Check if user is already logged in
+  const checkUserInfo = async () => {
+    try {
+      const response = await fetch("http://localhost:8001/api/auth/user-info/", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        console.log("User already logged in:", userData);
+        const user = userData.user;
+        if (user && user.standard_selected) {
+          navigate('/subjects');
+        } else if (user) {
+          navigate('/standards');
+        }
+      }
+    } catch (error) {
+      console.error("Error checking user info:", error);
+    }
+  };
+
+  useEffect(() => {
+    checkUserInfo();
+  }, []);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
+  };
+
+  // ✅ Logout Function
+  const logout = async () => {
+    try {
+      const response = await fetch("http://localhost:8001/api/auth/logout/", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        alert("Logged out successfully!");
+      }
+
+      navigate("/");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      navigate("/");
+    }
   };
 
   // ✅ Sign In Function
@@ -34,10 +84,11 @@ export default function Home() {
         return;
       }
 
-      // Example API call (replace with your backend endpoint)
-      const response = await fetch("http://127.0.0.1:8000/api/auth/login", {
+      // Django backend login API (session auth)
+      const response = await fetch("http://localhost:8001/api/auth/login/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
@@ -48,13 +99,13 @@ export default function Home() {
       const data = await response.json();
       console.log("Login successful:", data);
 
-      // ✅ Store token if provided
-      if (data.token) {
-        localStorage.setItem("token", data.token);
-      }
-
       alert("Login successful!");
-      navigate("/dashboard"); // ✅ redirect after login
+      const user = data.user;
+      if (user && user.standard_selected) {
+        navigate('/subjects');
+      } else {
+        navigate('/standards');
+      }
     } catch (error) {
       console.error("Login failed:", error);
       alert("Login failed. Please try again.");
@@ -196,23 +247,6 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Navigation Links */}
-          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600">
-            <div className="flex gap-2 justify-center">
-              <Link
-                to="/language"
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-              >
-                {t("language.select")}
-              </Link>
-              <Link
-                to="/standards"
-                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg focus:outline-none focus:ring-2 focus:ring-green-300"
-              >
-                {t("standards.select")}
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
     </div>

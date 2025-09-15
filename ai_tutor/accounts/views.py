@@ -1,12 +1,18 @@
 # accounts/views.py
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.db import transaction
 import json
 from .models import StudentProfile
+
+def ajax_login_required(func):
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': 'Authentication required'}, status=401)
+        return func(request, *args, **kwargs)
+    return wrapper
 
 @csrf_exempt
 def register_view(request):
@@ -16,10 +22,11 @@ def register_view(request):
             username = data.get('username')
             email = data.get('email')
             password = data.get('password')
-            
+            standard = data.get('standard')
+
             # Validation
-            if not username or not email or not password:
-                return JsonResponse({'error': 'All fields are required'}, status=400)
+            if not username or not email or not password or not standard:
+                return JsonResponse({'error': 'All fields including standard are required'}, status=400)
             
             if User.objects.filter(username=username).exists():
                 return JsonResponse({'error': 'Username already exists'}, status=400)
@@ -34,7 +41,11 @@ def register_view(request):
                     email=email,
                     password=password
                 )
-                StudentProfile.objects.create(user=user)
+                StudentProfile.objects.create(
+                    user=user,
+                    standard=standard,
+                    standard_selected=True
+                )
             
             return JsonResponse({
                 'message': 'Registration successful',
@@ -93,13 +104,13 @@ def login_view(request):
     
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
-@login_required
+@ajax_login_required
 def logout_view(request):
     logout(request)
     return JsonResponse({'message': 'Logout successful'})
 
-@login_required
 @csrf_exempt
+@ajax_login_required
 def select_standard_view(request):
     if request.method == 'POST':
         try:
@@ -128,7 +139,7 @@ def select_standard_view(request):
     
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
-@login_required
+@ajax_login_required
 def user_info_view(request):
     try:
         profile = StudentProfile.objects.get(user=request.user)
@@ -138,8 +149,47 @@ def user_info_view(request):
                 'username': request.user.username,
                 'email': request.user.email,
                 'standard_selected': profile.standard_selected,
-                'standard': profile.standard
+                'standard': profile.standard,
+                'language': profile.language
             }
         })
     except StudentProfile.DoesNotExist:
         return JsonResponse({'error': 'Profile not found'}, status=404)
+
+@csrf_exempt
+@ajax_login_required
+def update_settings_view(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            standard = data.get('standard')
+            language = data.get('language')
+
+            if not standard and not language:
+                return JsonResponse({'error': 'At least one field is required'}, status=400)
+
+            profile = StudentProfile.objects.get(user=request.user)
+
+            if standard:
+                profile.standard = standard
+            if language:
+                profile.language = language
+
+            profile.save()
+
+            response_data = {'message': 'Settings updated successfully'}
+            if standard:
+                response_data['standard'] = standard
+            if language:
+                response_data['language'] = language
+
+            return JsonResponse(response_data)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except StudentProfile.DoesNotExist:
+            return JsonResponse({'error': 'Profile not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
