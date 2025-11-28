@@ -1,87 +1,46 @@
-# Welcome to React Router!
+# AI Tutor - Interactive Learning Platform
 
-A modern, production-ready template for building full-stack React applications using React Router.
+An intelligent tutoring system that combines a Remix frontend, Django backend, and an advanced RAG-based AI to help students learn effectively.
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+## 🚀 Features
 
-## Features
+-   **Interactive Chat:** Ask questions and get answers based on your specific textbooks.
+-   **Voice Input:** Speak your questions, preview the transcribed text, and get AI responses.
+-   **Test Generation:** Automatically generate multiple-choice tests for any chapter.
+-   **Chat History:** Save and review your past conversations.
+-   **Subject Management:** Organize your learning by subjects and chapters.
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+## 🛠️ Tech Stack
 
-## Getting Started
+-   **Frontend:** React, Remix, Tailwind CSS
+-   **Backend:** Django, Django REST Framework
+-   **Database:** SQLite (Development)
+-   **AI Integration:** Connects to a custom RAG server (see `ai-tutor-rag` repo)
 
-### Installation
+## 📦 Installation
 
-Install the dependencies:
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/VivekJJadav/ai-tutor.git
+    cd ai-tutor
+    ```
 
-```bash
-npm install
-```
+2.  **Frontend Setup:**
+    ```bash
+    npm install
+    npm run dev
+    ```
 
-### Development
+3.  **Backend Setup:**
+    ```bash
+    cd ai_tutor
+    python -m venv myenv
+    source myenv/bin/activate  # On Windows: myenv\Scripts\activate
+    pip install -r requirements.txt
+    python manage.py migrate
+    python manage.py runserver
+    ```
 
-Start the development server with HMR:
+## 🔗 Related Repositories
 
-```bash
-npm run dev
-```
-
-Your application will be available at `http://localhost:5173`.
-
-## Building for Production
-
-Create a production build:
-
-```bash
-npm run build
-```
-
-## Deployment
-
-### Docker Deployment
-
-To build and run using Docker:
-
-```bash
-docker build -t my-app .
-
-# Run the container
-docker run -p 3000:3000 my-app
-```
-
-The containerized application can be deployed to any platform that supports Docker, including:
-
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
-
-### DIY Deployment
-
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
-```
-
-## Styling
-
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
-
----
-
-Built with ❤️ using React Router.
+-   **RAG Server:** [ai-tutor-rag](https://github.com/VivekJJadav/ai-tutor-rag) - The AI engine powering this application.
