@@ -22,7 +22,7 @@ export default function Home() {
   // ✅ Check if user is already logged in
   const checkUserInfo = async () => {
     try {
-      const response = await fetch("http://localhost:8001/api/auth/user-info/", {
+      const response = await fetch("http://localhost:8000/api/auth/user-info/", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -59,7 +59,7 @@ export default function Home() {
   // ✅ Logout Function
   const logout = async () => {
     try {
-      const response = await fetch("http://localhost:8001/api/auth/logout/", {
+      const response = await fetch("http://localhost:8000/api/auth/logout/", {
         method: "GET",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -85,7 +85,7 @@ export default function Home() {
       }
 
       // Django backend login API (session auth)
-      const response = await fetch("http://localhost:8001/api/auth/login/", {
+      const response = await fetch("http://localhost:8000/api/auth/login/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

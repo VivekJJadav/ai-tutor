@@ -16,27 +16,18 @@ interface Subject {
   color: string;
 }
 
-interface Chapter {
-  id: number;
-  title: string;
-  order: number;
-  subject_id: number;
-}
-
 export default function SubjectsSelection() {
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const [selectedSubject, setSelectedSubject] = useState<number | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [chapters, setChapters] = useState<Chapter[]>([]);
   const [loading, setLoading] = useState(true);
-  const [chaptersLoading, setChaptersLoading] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [userInfo, setUserInfo] = useState({
     username: '',
     standard: '10th',
-    language: 'en'
+    language: 'en',
+    standard_selected: false
   });
   const [settingsLoading, setSettingsLoading] = useState(false);
 
@@ -45,7 +36,7 @@ export default function SubjectsSelection() {
   // Fetch subjects from Django backend
   const fetchSubjects = async () => {
     try {
-      const response = await fetch("http://localhost:8001/api/subjects/", {
+      const response = await fetch("http://localhost:8000/api/subjects/", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -72,37 +63,11 @@ export default function SubjectsSelection() {
     }
   };
 
-  // Fetch chapters for selected subject
-  const fetchChapters = async (subjectId: number) => {
-    try {
-      setChaptersLoading(true);
-      const response = await fetch(`http://localhost:8001/api/chapters/${subjectId}/`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        const chaptersData = await response.json();
-        setChapters(chaptersData);
-      } else {
-        console.error("Failed to fetch chapters");
-        setChapters([]);
-      }
-    } catch (error) {
-      console.error("Error fetching chapters:", error);
-      setChapters([]);
-    } finally {
-      setChaptersLoading(false);
-    }
-  };
 
   // Fetch user info
   const fetchUserInfo = async () => {
     try {
-      const response = await fetch("http://localhost:8001/api/auth/user-info/", {
+      const response = await fetch("http://localhost:8000/api/auth/user-info/", {
         method: "GET",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -110,14 +75,24 @@ export default function SubjectsSelection() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log("User info received:", data); // Debug log
         setUserInfo({
           username: data.user.username,
           standard: data.user.standard || '10th',
-          language: data.user.language || 'en'
+          language: data.user.language || 'en',
+          standard_selected: data.user.standard_selected || false
         });
+      } else if (response.status === 401) {
+        // User not authenticated, redirect to login
+        console.log("User not authenticated, redirecting to login");
+        navigate("/");
+      } else {
+        console.error("Failed to fetch user info, status:", response.status);
       }
     } catch (error) {
       console.error("Error fetching user info:", error);
+      // If there's an error fetching user info, redirect to login
+      navigate("/");
     }
   };
 
@@ -125,7 +100,7 @@ export default function SubjectsSelection() {
   const updateStandard = async (newStandard: string) => {
     try {
       setSettingsLoading(true);
-      const response = await fetch("http://localhost:8001/api/auth/update-settings/", {
+      const response = await fetch("http://localhost:8000/api/auth/update-settings/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -133,11 +108,7 @@ export default function SubjectsSelection() {
       });
 
       if (response.ok) {
-        setUserInfo(prev => ({ ...prev, standard: newStandard }));
-        // Refresh chapters if a subject is selected
-        if (selectedSubject) {
-          fetchChapters(selectedSubject);
-        }
+        setUserInfo(prev => ({ ...prev, standard: newStandard, standard_selected: true }));
       } else {
         console.error("Failed to update standard");
       }
@@ -152,7 +123,7 @@ export default function SubjectsSelection() {
   const updateLanguage = async (newLanguage: string) => {
     try {
       setSettingsLoading(true);
-      const response = await fetch("http://localhost:8001/api/auth/update-settings/", {
+      const response = await fetch("http://localhost:8000/api/auth/update-settings/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -172,18 +143,29 @@ export default function SubjectsSelection() {
   };
 
   useEffect(() => {
+    console.log("SubjectsSelection component mounted");
     fetchSubjects();
     fetchUserInfo();
   }, []);
 
+  // Debug: Log user info changes
+  useEffect(() => {
+    console.log("User info updated:", userInfo);
+  }, [userInfo]);
+
   const handleSubjectSelect = (subjectId: number) => {
-    setSelectedSubject(subjectId);
-    fetchChapters(subjectId);
+    // Navigate directly to chapters sidebar page
+    if (userInfo.standard_selected) {
+      navigate(`/chapters/${subjectId}`);
+    } else {
+      console.warn("Standard not selected. Please select a standard first.");
+      setShowSettings(true);
+    }
   };
 
   const handleLogout = async () => {
     try {
-      const response = await fetch("http://localhost:8001/api/auth/logout/", {
+      const response = await fetch("http://localhost:8000/api/auth/logout/", {
         method: "GET",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -278,17 +260,12 @@ export default function SubjectsSelection() {
             {/* Subjects Navigation */}
             <div className="hidden md:flex space-x-1">
               {subjects.map((subject) => {
-                const isSelected = selectedSubject === subject.id;
-                const colorClass = getColorClasses(subject.color, isSelected);
+                const colorClass = getColorClasses(subject.color);
                 return (
                   <button
                     key={subject.id}
                     onClick={() => handleSubjectSelect(subject.id)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      isSelected
-                        ? `${colorClass.bg} text-white`
-                        : `text-gray-600 dark:text-gray-300 ${colorClass.selected} dark:hover:bg-gray-700`
-                    }`}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-600 dark:text-gray-300 ${colorClass.selected} dark:hover:bg-gray-700`}
                   >
                     {subject.name}
                   </button>
@@ -348,17 +325,12 @@ export default function SubjectsSelection() {
           <div className="px-4 py-3">
             <div className="grid grid-cols-2 gap-2">
               {subjects.map((subject) => {
-                const isSelected = selectedSubject === subject.id;
-                const colorClass = getColorClasses(subject.color, isSelected);
+                const colorClass = getColorClasses(subject.color);
                 return (
                   <button
                     key={subject.id}
                     onClick={() => handleSubjectSelect(subject.id)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      isSelected
-                        ? `${colorClass.bg} text-white`
-                        : `text-gray-600 dark:text-gray-300 ${colorClass.selected}`
-                    }`}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-600 dark:text-gray-300 ${colorClass.selected}`}
                   >
                     {subject.name}
                   </button>
@@ -371,124 +343,43 @@ export default function SubjectsSelection() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {!selectedSubject ? (
-          /* Hero Section */
-          <div className="text-center py-16">
-            <div className="max-w-3xl mx-auto">
-              <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-                Welcome to Your Learning Dashboard
-              </h2>
-              <p className="text-xl text-gray-600 dark:text-gray-400 mb-8">
-                Please select the subject you want to learn from the navigation bar above
-              </p>
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-                <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
-                  Available Subjects
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {subjects.map((subject) => {
-                    const colorClass = getColorClasses(subject.color);
-                    return (
-                      <button
-                        key={subject.id}
-                        onClick={() => handleSubjectSelect(subject.id)}
-                        className={`p-4 rounded-xl border-2 border-gray-200 dark:border-gray-600 hover:border-transparent transition-all duration-200 transform hover:scale-105 hover:shadow-lg ${colorClass.selected}`}
-                      >
-                        <div className={`w-12 h-12 ${colorClass.bg} rounded-full flex items-center justify-center mx-auto mb-3`}>
-                          <span className="text-white font-bold text-lg">
-                            {subject.name.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-                          {subject.name}
-                        </h4>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* Chapters Section */
-          <div>
-            <div className="mb-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-                    {subjects.find(s => s.id === selectedSubject)?.name} Chapters
-                  </h2>
-                  <p className="text-gray-600 dark:text-gray-400 mt-2">
-                    Select a chapter to start learning
-                  </p>
-                </div>
-                {/* <button
-                  onClick={() => setSelectedSubject(null)}
-                  className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
-                >
-                  Back to Subjects
-                </button> */}
-              </div>
-            </div>
-
-            {chaptersLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto"></div>
-                <p className="mt-4 text-gray-600 dark:text-gray-400">Loading chapters...</p>
-              </div>
-            ) : chapters.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-                  <p className="text-gray-500 dark:text-gray-400 text-lg mb-4">
-                    No chapters available for this subject yet.
-                  </p>
-                  <button
-                    onClick={() => setSelectedSubject(null)}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors"
-                  >
-                    Choose Another Subject
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {chapters.map((chapter) => {
-                  const subject = subjects.find(s => s.id === selectedSubject);
-                  const colorClass = getColorClasses(subject?.color || 'blue');
+        {/* Hero Section */}
+        <div className="text-center py-16">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              Welcome to Your Learning Dashboard
+            </h2>
+            <p className="text-xl text-gray-600 dark:text-gray-400 mb-8">
+              Select a subject to start learning with interactive chapters, notes, and formulas
+            </p>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+              <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
+                Available Subjects
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {subjects.map((subject) => {
+                  const colorClass = getColorClasses(subject.color);
                   return (
-                    <div
-                      key={chapter.id}
-                      className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 p-6 cursor-pointer border-2 border-transparent hover:border-gray-200 dark:hover:border-gray-600"
+                    <button
+                      key={subject.id}
+                      onClick={() => handleSubjectSelect(subject.id)}
+                      className={`p-4 rounded-xl border-2 border-gray-200 dark:border-gray-600 hover:border-transparent transition-all duration-200 transform hover:scale-105 hover:shadow-lg ${colorClass.selected}`}
                     >
-                      <div className="flex items-start space-x-4">
-                        <div className={`w-12 h-12 ${colorClass.bg} rounded-full flex items-center justify-center flex-shrink-0`}>
-                          <span className="text-white font-bold text-lg">
-                            {chapter.order}
-                          </span>
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                            {chapter.title}
-                          </h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Chapter {chapter.order}
-                          </p>
-                        </div>
+                      <div className={`w-12 h-12 ${colorClass.bg} rounded-full flex items-center justify-center mx-auto mb-3`}>
+                        <span className="text-white font-bold text-lg">
+                          {subject.name.charAt(0).toUpperCase()}
+                        </span>
                       </div>
-                      <div className="mt-4">
-                        <button
-                          className={`w-full ${colorClass.bg} ${colorClass.hover} text-white px-4 py-2 rounded-lg transition-colors font-medium`}
-                        >
-                          Start Learning
-                        </button>
-                      </div>
-                    </div>
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {subject.name}
+                      </h4>
+                    </button>
                   );
                 })}
               </div>
-            )}
+            </div>
           </div>
-        )}
+        </div>
       </main>
 
       {/* Settings Modal */}

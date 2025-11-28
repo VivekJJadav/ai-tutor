@@ -172,6 +172,8 @@ def update_settings_view(request):
 
             if standard:
                 profile.standard = standard
+                # Ensure downstream endpoints recognize that a standard has been selected
+                profile.standard_selected = True
             if language:
                 profile.language = language
 

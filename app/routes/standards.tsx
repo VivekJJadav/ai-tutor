@@ -19,29 +19,36 @@ export default function StandardsSelection() {
     setSelectedStandard(standard);
 
     try {
+      console.log("Attempting to save standard:", standard);
       // Send standard selection to Django backend
-      const response = await fetch("http://127.0.0.1:8000/api/auth/select-standard/", {
+      const response = await fetch("http://localhost:8000/api/auth/select-standard/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
         },
+        credentials: "include",
         body: JSON.stringify({ standard }),
       });
 
+      console.log("Response status:", response.status);
+      console.log("Response headers:", Object.fromEntries(response.headers.entries()));
+
       if (response.ok) {
+        const data = await response.json();
+        console.log("Standard selection successful:", data);
         // Store standard preference in localStorage
         localStorage.setItem('selectedStandard', standard);
         // Navigate to subjects page after standard selection
         navigate('/subjects');
       } else {
-        throw new Error("Failed to save standard selection");
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Failed to save standard selection:", response.status, response.statusText, errorData);
+        throw new Error(`Failed to save standard selection: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
       console.error("Error saving standard:", error);
-      // Still store locally and navigate on error
-      localStorage.setItem('selectedStandard', standard);
-      navigate('/subjects');
+      alert("Failed to save standard selection. Please try again.");
+      setSelectedStandard(null);
     }
   };
 
